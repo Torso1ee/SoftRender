@@ -3,13 +3,23 @@
 #include "model.h"
 #include "tgaimage.h"
 
-
 mat<4, 4> view(const int x, const int y, const int w, const int h, const int d);
 mat<4, 4> project(const double coeff = 0); // coeff = -1/c
 mat<4, 4> lookat(const vec3 eye, const vec3 center, const vec3 up);
 
-struct IShader {
+struct RenderData {
+  mat<4, 4> viewport;
+  mat<4, 4> projection;
+  mat<4, 4> modelView;
+  mat<4, 4> normalMat;
+  vec3 light;
   vec3 varying_intensity;
+  mat<2, 3> varying_uv;
+  Model *model;
+};
+
+struct IShader {
+  RenderData renderData;
   static TGAColor sample2D(const TGAImage &img, const vec2 &uvf) {
     return img.get(uvf[0] * img.width(), uvf[1] * img.height());
   }
