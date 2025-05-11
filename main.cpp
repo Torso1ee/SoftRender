@@ -2,9 +2,11 @@
 #include "geometry.h"
 #include "tgaimage.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <iterator>
+#include <ostream>
 
 struct GouraudShader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const {
@@ -28,18 +30,46 @@ struct GouraudShader : public IShader {
 struct Shader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const {
     auto uv = renderData.varying_uv * bar;
-    auto n = renderData.model->normal(uv);
-    vec4 n4{n.x, n.y, n.z, 1};
-    n4 = renderData.normalMat * n4;
-    n = {n4.x / n4.w, n4.y / n4.w, n4.z / n4.w};
-    normalized(n);
-    float intensity = std::max(0., n * renderData.light);
+    auto nrm = normalized(renderData.varying_normal.transpose() * bar);
+
+    auto nrms = renderData.varying_normal;
+    mat<3, 3> A;
+    A[0] = renderData.ndc_tri[1] - renderData.ndc_tri[0];
+    A[1] = renderData.ndc_tri[2] - renderData.ndc_tri[0];
+    A[2] = nrm;
+
+    auto AI = A.invert();
+
+    vec3 i =
+        AI * vec3{renderData.varying_uv[0][1] - renderData.varying_uv[0][0],
+                  renderData.varying_uv[0][2] - renderData.varying_uv[0][0], 0};
+    vec3 j =
+        AI * vec3{renderData.varying_uv[1][1] - renderData.varying_uv[1][0],
+                  renderData.varying_uv[1][2] - renderData.varying_uv[1][0], 0};
+
+    mat<3, 3> B;
+    B.rows[0] = i;
+    B.rows[1] = j;
+    B.rows[2] = nrm;
+    B = B.transpose();
+
+    auto n = normalized(B * renderData.model->normal(uv));
+
+    auto diff = std::max(0., n * renderData.light);
+
     auto &diffuse = renderData.model->diffuse();
+    auto &specular = renderData.model->specular();
+
+    auto r = normalized(2 * (n * renderData.light) * n - renderData.light);
+    auto spec = pow(std::max(r * renderData.viewDir, 0.),
+                    specular.get(int(uv.x * (diffuse.width() - 1)),
+                                 int(uv.y * (diffuse.height() - 1)))[0]);
     color = diffuse.get(int(uv.x * (diffuse.width() - 1)),
                         int(uv.y * (diffuse.height() - 1)));
-    color =
-        TGAColor{uint8_t(color[0] * intensity), uint8_t(color[1] * intensity),
-                 uint8_t(color[2] * intensity)};
+    for (int i = 0; i < 3; i++) {
+      color[i] = std::min(uint8_t(255),
+                          uint8_t(5 + color[i] * (diff + .6 * spec)));
+    }
 
     return false;
   }
@@ -51,8 +81,8 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->eye = {1, 1, 4};
-  renderer->light = {0, 0, 1};
+  renderer->eye = {2, 2, 4};
+  renderer->light = {0, 0.5, 1};
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
   renderer->imageSize = {800, 800};

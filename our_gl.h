@@ -14,8 +14,13 @@ struct RenderData {
   mat<4, 4> normalMat;
   vec3 light;
   vec3 varying_intensity;
+  mat<3, 3> varying_normal;
+  mat<3, 3> ndc_tri;
+
+
   mat<2, 3> varying_uv;
   Model *model;
+  vec3 viewDir;
 };
 
 struct IShader {

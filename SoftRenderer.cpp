@@ -32,12 +32,12 @@ void SoftRenderer::render(IShader &shader) {
   if (!inited) {
     throw std::runtime_error("not inited!");
   } else {
-
     shader.renderData.viewport = viewport;
     shader.renderData.projection = projection;
     shader.renderData.modelView = modelView;
     shader.renderData.light = light;
     shader.renderData.normalMat = modelView.invert_transpose();
+    shader.renderData.viewDir = normalized(camera);
     for (auto model : scene) {
       shader.renderData.model = model;
       for (int i = 0; i < model->nfaces(); i++) {
@@ -45,6 +45,8 @@ void SoftRenderer::render(IShader &shader) {
         vec2 uv;
         for (int j = 0; j < 3; j++) {
           vec3 v = model->vert(i, j);
+          vec3 nrm = model->normal(i, j);
+          shader.renderData.varying_normal[j] = nrm;
           shader.renderData.varying_intensity[j] =
               std::max(0., model->normal(i, j) * light);
           uv = model->uv(i, j);
@@ -55,6 +57,7 @@ void SoftRenderer::render(IShader &shader) {
           screen_coords[j].x = int(vl.x / vl.w);
           screen_coords[j].y = int(vl.y / vl.w);
           screen_coords[j].z = int(vl.z / vl.w);
+           shader.renderData.ndc_tri[j] =  screen_coords[j];
         }
         triangle(screen_coords, shader, image, zbuffer);
       }
