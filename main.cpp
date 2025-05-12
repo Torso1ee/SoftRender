@@ -2,6 +2,7 @@
 #include "geometry.h"
 #include "tgaimage.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -32,25 +33,22 @@ struct Shader : public IShader {
     auto uv = renderData.varying_uv * bar;
     auto nrm = normalized(renderData.varying_normal.transpose() * bar);
 
-    auto nrms = renderData.varying_normal;
-    mat<3, 3> A;
-    A[0] = renderData.ndc_tri[1] - renderData.ndc_tri[0];
-    A[1] = renderData.ndc_tri[2] - renderData.ndc_tri[0];
-    A[2] = nrm;
+    vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
+    vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
 
-    auto AI = A.invert();
+    vec2 dUV1 = vec2{renderData.varying_uv[0][1] - renderData.varying_uv[0][0],
+                     renderData.varying_uv[1][1] - renderData.varying_uv[1][0]};
+    vec2 dUV2 = vec2{renderData.varying_uv[0][2] - renderData.varying_uv[0][0],
+                     renderData.varying_uv[1][2] - renderData.varying_uv[1][0]};
 
-    vec3 i =
-        AI * vec3{renderData.varying_uv[0][1] - renderData.varying_uv[0][0],
-                  renderData.varying_uv[0][2] - renderData.varying_uv[0][0], 0};
-    vec3 j =
-        AI * vec3{renderData.varying_uv[1][1] - renderData.varying_uv[1][0],
-                  renderData.varying_uv[1][2] - renderData.varying_uv[1][0], 0};
+    float f = 1.0f / (dUV1.x * dUV2.y - dUV2.x * dUV1.y);
+    auto tangent = normalized(f * (dUV2.y * e1 - dUV1.y * e2));
+    auto bitangent = normalized(f * (-dUV2.x * e1 + dUV1.x * e2));
 
     mat<3, 3> B;
-    B.rows[0] = i;
-    B.rows[1] = j;
-    B.rows[2] = nrm;
+    B[0] = tangent;
+    B[1] = bitangent;
+    B[2] = nrm;
     B = B.transpose();
 
     auto n = normalized(B * renderData.model->normal(uv));
@@ -67,8 +65,8 @@ struct Shader : public IShader {
     color = diffuse.get(int(uv.x * (diffuse.width() - 1)),
                         int(uv.y * (diffuse.height() - 1)));
     for (int i = 0; i < 3; i++) {
-      color[i] = std::min(uint8_t(255),
-                          uint8_t(5 + color[i] * (diff + .6 * spec)));
+      color[i] =
+          std::min(uint8_t(255), uint8_t(5 + color[i] * (diff + .6 * spec)));
     }
 
     return false;
@@ -76,13 +74,16 @@ struct Shader : public IShader {
 };
 
 int main(int, char **) {
-  auto model = new Model("obj/african_head/african_head.obj");
   auto renderer = new SoftRenderer();
+
+  auto model = new Model("obj/african_head/african_head.obj");
+  renderer->append_model(model);
+  model = new Model("obj/african_head/african_head_eye_inner.obj");
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->eye = {2, 2, 4};
-  renderer->light = {0, 0.5, 1};
+  renderer->eye = {2, 1, 4};
+  renderer->light = {0, 1, 1};
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
   renderer->imageSize = {800, 800};
@@ -91,7 +92,12 @@ int main(int, char **) {
   GouraudShader shader1;
   Shader shader2;
 
+  auto start = std::chrono::high_resolution_clock::now();
   renderer->render(shader2);
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
+
   renderer->write_image("output.tga");
   delete renderer;
 }
