@@ -44,9 +44,9 @@ struct Shader : public IShader {
         0.7 *
             (renderData.shadow->get(
                  std::max(
-                     0, std::min(int(pS.x / pS.w), renderData.shadow->width())),
+                     0, std::min(int(pS.x / pS.w), renderData.shadow->width()-1)),
                  std::max(0, std::min(int(pS.y / pS.w),
-                                      renderData.shadow->height())))[0] < pS.z + 2.5);
+                                      renderData.shadow->height()-1)))[0] < pS.z+40 );
 
     vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
     vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
@@ -97,7 +97,7 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->light = {0, 0.5, 1};
+  renderer->light = {0, 1, 1};
   renderer->eye = renderer->light;
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
