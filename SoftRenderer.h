@@ -18,12 +18,14 @@ public:
   vec2 imageSize;
 
   void append_model(Model *model);
-  void init();
+  void init(bool proj);
 
   void render(IShader &shader);
   void write_image(const char *path);
-  void write_Zimage(const char *path);
-
+  void write_zimage(const char *path);
+  void setShadowInfo(TGAImage *map, mat<4, 4> shadowM);
+  TGAImage get_zImage();
+  mat<4, 4> getCurCompoundMatrix();
 
 private:
   std::vector<Model *> scene;
@@ -31,7 +33,9 @@ private:
   mat<4, 4> projection;
   mat<4, 4> modelView;
   mat<4, 4> viewport;
+  mat<4, 4> shadow;
   TGAImage *zbuffer;
   TGAImage *image;
+  TGAImage *shadowImage;
   bool inited;
 };

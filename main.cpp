@@ -28,10 +28,19 @@ struct GouraudShader : public IShader {
   }
 };
 
+struct DepthShader : public IShader {
+  bool fragment(const vec3 bar, TGAColor &color) const { return false; }
+};
+
 struct Shader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const {
     auto uv = renderData.varying_uv * bar;
     auto nrm = normalized(renderData.varying_normal.transpose() * bar);
+
+    vec3 p = renderData.ndc_tri.transpose() * bar;
+    vec4 pS = renderData.shadowMat * vec4{p.x, p.y, p.z, 1};
+    float shadow = 0.3 + 0.7 * (renderData.shadow->get(pS.x / pS.w,
+                                                       pS.y / pS.w)[0] < pS.z);
 
     vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
     vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
@@ -65,8 +74,8 @@ struct Shader : public IShader {
     color = diffuse.get(int(uv.x * (diffuse.width() - 1)),
                         int(uv.y * (diffuse.height() - 1)));
     for (int i = 0; i < 3; i++) {
-      color[i] =
-          std::min(uint8_t(255), uint8_t(5 + color[i] * (diff + .6 * spec)));
+      color[i] = std::min(uint8_t(255),
+                          uint8_t(5 + color[i] * shadow * (diff + .6 * spec)));
     }
 
     return false;
@@ -82,22 +91,37 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->eye = {2, 1, 4};
-  renderer->light = {0, 1, 1};
+  renderer->light = {.5, 0.5, 1};
+  renderer->eye = renderer->light;
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
   renderer->imageSize = {800, 800};
-  renderer->init();
+  renderer->init(false);
 
   GouraudShader shader1;
   Shader shader2;
+  DepthShader depthShader;
 
+  // shadowbuffer
   auto start = std::chrono::high_resolution_clock::now();
-  renderer->render(shader2);
+  renderer->render(depthShader);
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = end - start;
   std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
+  renderer->write_zimage("depth.tga");
 
-  renderer->write_image("output.tga");
+  // // render
+  // renderer->eye = {2, 1, 4};
+  // auto curMat = renderer->getCurCompoundMatrix();
+  // auto zimage = renderer->get_zImage();
+  // renderer->setShadowInfo(&zimage, curMat);
+  // renderer->init(false);
+  // start = std::chrono::high_resolution_clock::now();
+  // renderer->render(shader2);
+  // end = std::chrono::high_resolution_clock::now();
+  // duration = end - start;
+  // std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
+
+  // renderer->write_image("output.tga");
   delete renderer;
 }

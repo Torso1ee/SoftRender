@@ -13,15 +13,21 @@ SoftRenderer::~SoftRenderer() {
 
 void SoftRenderer::append_model(Model *model) { scene.push_back(model); }
 
-void SoftRenderer::init() {
+void SoftRenderer::setShadowInfo(TGAImage *map, mat<4, 4> shadowM) {
+  shadowImage = map;
+  shadow = shadowM;
+}
+
+void SoftRenderer::init(bool proj) {
   if (!inited) {
     camera = eye - center;
     modelView = lookat(eye, center, up);
-    projection = project(-1.f / norm(camera - center));
+    projection = project(proj ? -1.f / norm(camera - center) : 0);
     viewport = view(corner.x, corner.y, size.x, size.y, size.z);
     zbuffer = new TGAImage(imageSize.x, imageSize.y, TGAImage::GRAYSCALE);
     image = new TGAImage(imageSize.x, imageSize.y, TGAImage::RGB);
     light = normalized(light);
+    shadow = shadow * getCurCompoundMatrix().invert();
     inited = true;
   } else {
     throw std::runtime_error("init twice!");
@@ -32,10 +38,13 @@ void SoftRenderer::render(IShader &shader) {
   if (!inited) {
     throw std::runtime_error("not inited!");
   } else {
+    auto cmat = getCurCompoundMatrix();
+    shader.renderData.depth = size.z;
     shader.renderData.viewport = viewport;
     shader.renderData.projection = projection;
     shader.renderData.modelView = modelView;
     shader.renderData.light = light;
+    shader.renderData.shadow = shadowImage;
     shader.renderData.normalMat = modelView.invert_transpose();
     shader.renderData.viewDir = normalized(camera);
     for (auto model : scene) {
@@ -53,16 +62,20 @@ void SoftRenderer::render(IShader &shader) {
           shader.renderData.varying_uv[0][j] = uv.x;
           shader.renderData.varying_uv[1][j] = uv.y;
           vec4 vl{v.x, v.y, v.z, 1};
-          vl = viewport * projection * modelView * vl;
+          vl = cmat * vl;
           screen_coords[j].x = int(vl.x / vl.w);
           screen_coords[j].y = int(vl.y / vl.w);
           screen_coords[j].z = int(vl.z / vl.w);
-           shader.renderData.ndc_tri[j] =  screen_coords[j];
+          shader.renderData.ndc_tri[j] = screen_coords[j];
         }
         triangle(screen_coords, shader, image, zbuffer);
       }
     }
   }
+}
+
+mat<4, 4> SoftRenderer::getCurCompoundMatrix() {
+  viewport *projection *modelView;
 }
 
 void SoftRenderer::write_image(const char *path) {
@@ -72,7 +85,10 @@ void SoftRenderer::write_image(const char *path) {
     image->write_tga_file(path);
   }
 }
-void SoftRenderer::write_Zimage(const char *path) {
+
+TGAImage SoftRenderer::get_zImage() { return *zbuffer; }
+
+void SoftRenderer::write_zimage(const char *path) {
   if (!inited) {
     throw std::runtime_error("not inited!");
   } else {

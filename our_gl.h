@@ -12,15 +12,17 @@ struct RenderData {
   mat<4, 4> projection;
   mat<4, 4> modelView;
   mat<4, 4> normalMat;
+  mat<4, 4> shadowMat;
   vec3 light;
   vec3 varying_intensity;
   mat<3, 3> varying_normal;
   mat<3, 3> ndc_tri;
-
+  int depth;
 
   mat<2, 3> varying_uv;
   Model *model;
   vec3 viewDir;
+  TGAImage *shadow;
 };
 
 struct IShader {
