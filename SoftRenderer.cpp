@@ -19,19 +19,15 @@ void SoftRenderer::setShadowInfo(TGAImage *map, mat<4, 4> shadowM) {
 }
 
 void SoftRenderer::init(bool proj) {
-  if (!inited) {
-    camera = eye - center;
-    modelView = lookat(eye, center, up);
-    projection = project(proj ? -1.f / norm(camera - center) : 0);
-    viewport = view(corner.x, corner.y, size.x, size.y, size.z);
-    zbuffer = new TGAImage(imageSize.x, imageSize.y, TGAImage::GRAYSCALE);
-    image = new TGAImage(imageSize.x, imageSize.y, TGAImage::RGB);
-    light = normalized(light);
-    shadow = shadow * getCurCompoundMatrix().invert();
-    inited = true;
-  } else {
-    throw std::runtime_error("init twice!");
-  }
+  camera = eye - center;
+  modelView = lookat(eye, center, up);
+  projection = project(proj ? -1.f / norm(camera - center) : 0);
+  viewport = view(corner.x, corner.y, size.x, size.y, size.z);
+  zbuffer = new TGAImage(imageSize.x, imageSize.y, TGAImage::GRAYSCALE);
+  image = new TGAImage(imageSize.x, imageSize.y, TGAImage::RGB);
+  light = normalized(light);
+  shadow = shadow * getCurCompoundMatrix().invert();
+  inited = true;
 }
 
 void SoftRenderer::render(IShader &shader) {
@@ -45,6 +41,7 @@ void SoftRenderer::render(IShader &shader) {
     shader.renderData.modelView = modelView;
     shader.renderData.light = light;
     shader.renderData.shadow = shadowImage;
+    shader.renderData.shadowMat = shadow;
     shader.renderData.normalMat = modelView.invert_transpose();
     shader.renderData.viewDir = normalized(camera);
     for (auto model : scene) {
@@ -75,7 +72,7 @@ void SoftRenderer::render(IShader &shader) {
 }
 
 mat<4, 4> SoftRenderer::getCurCompoundMatrix() {
-  viewport *projection *modelView;
+  return viewport * projection * modelView;
 }
 
 void SoftRenderer::write_image(const char *path) {

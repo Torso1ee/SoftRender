@@ -39,8 +39,14 @@ struct Shader : public IShader {
 
     vec3 p = renderData.ndc_tri.transpose() * bar;
     vec4 pS = renderData.shadowMat * vec4{p.x, p.y, p.z, 1};
-    float shadow = 0.3 + 0.7 * (renderData.shadow->get(pS.x / pS.w,
-                                                       pS.y / pS.w)[0] < pS.z);
+    float shadow =
+        0.3 +
+        0.7 *
+            (renderData.shadow->get(
+                 std::max(
+                     0, std::min(int(pS.x / pS.w), renderData.shadow->width())),
+                 std::max(0, std::min(int(pS.y / pS.w),
+                                      renderData.shadow->height())))[0] < pS.z + 2.5);
 
     vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
     vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
@@ -91,7 +97,7 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->light = {.5, 0.5, 1};
+  renderer->light = {0, 0.5, 1};
   renderer->eye = renderer->light;
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
@@ -111,17 +117,16 @@ int main(int, char **) {
   renderer->write_zimage("depth.tga");
 
   // // render
-  // renderer->eye = {2, 1, 4};
-  // auto curMat = renderer->getCurCompoundMatrix();
-  // auto zimage = renderer->get_zImage();
-  // renderer->setShadowInfo(&zimage, curMat);
-  // renderer->init(false);
-  // start = std::chrono::high_resolution_clock::now();
-  // renderer->render(shader2);
-  // end = std::chrono::high_resolution_clock::now();
-  // duration = end - start;
-  // std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
-
-  // renderer->write_image("output.tga");
+  renderer->eye = {2, 1, 4};
+  auto curMat = renderer->getCurCompoundMatrix();
+  auto zimage = renderer->get_zImage();
+  renderer->setShadowInfo(&zimage, curMat);
+  renderer->init(true);
+  start = std::chrono::high_resolution_clock::now();
+  renderer->render(shader2);
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
+  renderer->write_image("output.tga");
   delete renderer;
 }
