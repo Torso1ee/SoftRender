@@ -24,6 +24,10 @@ public:
   void write_image(const char *path);
   void write_zimage(const char *path);
   void setShadowInfo(TGAImage *map, mat<4, 4> shadowM);
+  void setOccl(TGAImage *,TGAImage *);
+
+   void reset_zimage();
+    void reset_shadow();
   TGAImage get_zImage();
   mat<4, 4> getCurCompoundMatrix();
 
@@ -37,5 +41,8 @@ private:
   TGAImage *zbuffer;
   TGAImage *image;
   TGAImage *shadowImage;
+  TGAImage *occlImage;
+  TGAImage *totalImage;
+
   bool inited;
 };

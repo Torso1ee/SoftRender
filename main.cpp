@@ -5,10 +5,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
-#include <iterator>
 #include <ostream>
-
+#define _USE_MATH_DEFINES
+#include <math.h>
 struct GouraudShader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const {
     float intensity = renderData.varying_intensity * bar;
@@ -28,6 +29,33 @@ struct GouraudShader : public IShader {
   }
 };
 
+struct AmShader : public IShader {
+  bool fragment(const vec3 bar, TGAColor &color) const {
+    vec2 uv = renderData.varying_uv * bar;
+    vec3 p = renderData.ndc_tri * bar;
+    if (abs(renderData.shadow->get(uv.x * (renderData.shadow->width() - 1),
+                                   uv.y *
+                                       (renderData.shadow->height() - 1))[0] -
+            p.z) < 50) {
+      renderData.occlImage->set(uv.x * (renderData.occlImage->width() - 1),
+                                uv.y * (renderData.occlImage->height() - 1),
+                                TGAColor{255});
+    }
+  }
+};
+
+struct OcShader : public IShader {
+  bool fragment(const vec3 bar, TGAColor &color) const {
+    vec2 uv = renderData.varying_uv * bar;
+    auto gg = renderData.occlImage->get(
+        uv.x * (renderData.occlImage->width() - 1),
+        uv.y * (renderData.occlImage->height() - 1))[0];
+    color = TGAColor{gg, gg, gg};
+
+    return false;
+  }
+};
+
 struct DepthShader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const { return false; }
 };
@@ -41,12 +69,12 @@ struct Shader : public IShader {
     vec4 pS = renderData.shadowMat * vec4{p.x, p.y, p.z, 1};
     float shadow =
         0.3 +
-        0.7 *
-            (renderData.shadow->get(
-                 std::max(
-                     0, std::min(int(pS.x / pS.w), renderData.shadow->width()-1)),
-                 std::max(0, std::min(int(pS.y / pS.w),
-                                      renderData.shadow->height()-1)))[0] < pS.z+40 );
+        0.7 * (renderData.shadow->get(
+                   std::max(0, std::min(int(pS.x / pS.w),
+                                        renderData.shadow->width() - 1)),
+                   std::max(0, std::min(int(pS.y / pS.w),
+                                        renderData.shadow->height() - 1)))[0] <
+               pS.z + 40);
 
     vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
     vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
@@ -88,8 +116,35 @@ struct Shader : public IShader {
   }
 };
 
+float max_elevation_angle(TGAImage *zbuffer, vec2 p, vec2 dir) {
+  float maxangle = 0;
+  for (float t = 0.; t < 1000.; t += 1.) {
+    vec2 cur = p + dir * t;
+    if (cur.x >= zbuffer->width() || cur.y >= zbuffer->height() || cur.x < 0 ||
+        cur.y < 0)
+      return maxangle;
+
+    float distance = norm(p - cur);
+    if (distance < 1.f)
+      continue;
+    float elevation = zbuffer->get(cur.x, cur.y)[0] - zbuffer->get(p.x, p.y)[0];
+    maxangle = std::max(maxangle, atanf(elevation / distance));
+  }
+  return maxangle;
+}
+
+vec3 rand_point() {
+  auto u = (float)rand() / (float)RAND_MAX;
+  auto v = (float)rand() / (float)RAND_MAX;
+  auto theta = 2.f * M_PI * u;
+  auto phi = acos(2.f * v - 1.f);
+  return vec3{sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi)};
+}
+
 int main(int, char **) {
   auto renderer = new SoftRenderer();
+  auto occl = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
+  auto total = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
 
   auto model = new Model("obj/african_head/african_head.obj");
   renderer->append_model(model);
@@ -102,13 +157,14 @@ int main(int, char **) {
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
   renderer->imageSize = {800, 800};
-  renderer->init(false);
 
   GouraudShader shader1;
   Shader shader2;
   DepthShader depthShader;
+  AmShader amshader;
 
   // shadowbuffer
+  renderer->init(false);
   auto start = std::chrono::high_resolution_clock::now();
   renderer->render(depthShader);
   auto end = std::chrono::high_resolution_clock::now();
@@ -128,5 +184,77 @@ int main(int, char **) {
   duration = end - start;
   std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
   renderer->write_image("output.tga");
+
+  // get occl
+  //  renderer->setOccl(occl, total);
+  //  const int nrenders = 1000;
+  //  for (int iter = 1; iter <= nrenders; iter++) {
+  //    std::cout << iter << std::endl;
+  //    for (int i = 0; i < 3; i++)
+  //      renderer->up[i] = (float)rand() / (float)RAND_MAX;
+  //    renderer->eye = rand_point();
+  //    renderer->eye.y = abs(renderer->eye.y);
+  //    renderer->init(false);
+  //    renderer->render(depthShader);
+  //    auto zimage = renderer->get_zImage();
+  //    auto curMat = renderer->getCurCompoundMatrix();
+  //    renderer->setShadowInfo(&zimage, curMat);
+  //    renderer->init(false);
+  //    renderer->render(amshader);
+  //    for (int j = 0; j < total->width(); j++) {
+  //      for (int k = 0; k < total->height(); k++) {
+  //        auto tmp = total->get(j, k)[0];
+  //        total->set(
+  //            j, k,
+  //            TGAColor{uint8_t(
+  //                (tmp * (iter - 1) + occl->get(j, k)[0]) / float(iter) +
+  //                .5f)});
+  //      }
+  //    }
+  //  }
+  //  total->flip_vertically();
+  //  total->write_tga_file("occlusion.tga");
+  //  occl->flip_vertically();
+  //  occl->write_tga_file("occl.tga");
+
+  // ocrender
+  // OcShader occ;
+  // auto newocl = new TGAImage();
+  // newocl->read_tga_file("occl.tga");
+  // renderer->setOccl(newocl, newocl);
+  // renderer->eye = {2, 1, 4};
+  // renderer->init(true);
+  // renderer->render(occ);
+  // renderer->write_image("output.tga");
+
+  // simpleOc
+  // renderer->eye = {2, 1, 4};
+  // renderer->init(true);
+  // renderer->render(depthShader);
+  // auto zimage = renderer->get_zImage();
+  // TGAImage frame(800, 800, TGAImage::RGB);
+  // for (int j = 0; j < frame.width(); j++) {
+  //   std::cout << j << std::endl;
+  //   for (int k = 0; k < frame.height(); k++) {
+  //     if (zimage.get(j, k)[0] < -1e5)
+  //       continue;
+  //     float total = 0;
+  //     for (float a = 0; a < M_PI * 2 - 1e-4; a += M_PI / 4) {
+  //       total +=
+  //           M_PI / 2 - max_elevation_angle(&zimage, vec2{(double)j,
+  //           (double)k},
+  //                                          vec2{cos(a), sin(a)});
+  //     }
+  //     total /= (M_PI / 2) * 8;
+  //     total = pow(total, 100.f);
+  //     frame.set(j, k,
+  //               TGAColor{uint8_t(total * 255), uint8_t(total * 255),
+  //                        uint8_t(total * 255)});
+  //   }
+  // }
+  // frame.flip_vertically();
+  // frame.write_tga_file("output.tga");
   delete renderer;
+  delete occl;
+  delete total;
 }

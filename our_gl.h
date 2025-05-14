@@ -23,6 +23,7 @@ struct RenderData {
   Model *model;
   vec3 viewDir;
   TGAImage *shadow;
+  TGAImage *occlImage;
 };
 
 struct IShader {

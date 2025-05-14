@@ -4,8 +4,10 @@
 #include <stdexcept>
 
 SoftRenderer::~SoftRenderer() {
-  delete zbuffer;
-  delete image;
+  if (zbuffer != nullptr)
+    delete zbuffer;
+  if (image != nullptr)
+    delete image;
   for (auto model : scene) {
     delete model;
   }
@@ -18,12 +20,21 @@ void SoftRenderer::setShadowInfo(TGAImage *map, mat<4, 4> shadowM) {
   shadow = shadowM;
 }
 
+void SoftRenderer::setOccl(TGAImage *img, TGAImage *img1) {
+  occlImage = img;
+  totalImage = img1;
+}
+
 void SoftRenderer::init(bool proj) {
   camera = eye - center;
   modelView = lookat(eye, center, up);
   projection = project(proj ? -1.f / norm(camera - center) : 0);
   viewport = view(corner.x, corner.y, size.x, size.y, size.z);
+  if (zbuffer != nullptr)
+    delete zbuffer;
   zbuffer = new TGAImage(imageSize.x, imageSize.y, TGAImage::GRAYSCALE);
+  if (image != nullptr)
+    delete image;
   image = new TGAImage(imageSize.x, imageSize.y, TGAImage::RGB);
   light = normalized(light);
   shadow = shadow * getCurCompoundMatrix().invert();
@@ -35,6 +46,7 @@ void SoftRenderer::render(IShader &shader) {
     throw std::runtime_error("not inited!");
   } else {
     auto cmat = getCurCompoundMatrix();
+    shader.renderData.occlImage = occlImage;
     shader.renderData.depth = size.z;
     shader.renderData.viewport = viewport;
     shader.renderData.projection = projection;
