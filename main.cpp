@@ -75,7 +75,7 @@ struct Shader : public IShader {
                                         renderData.shadow->width() - 1)),
                    std::max(0, std::min(int(pS.y / pS.w),
                                         renderData.shadow->height() - 1)))[0] <
-               pS.z + 40);
+               pS.z + 10);
 
     vec3 e1 = renderData.world_tri[1] - renderData.world_tri[0];
     vec3 e2 = renderData.world_tri[2] - renderData.world_tri[0];
@@ -151,7 +151,7 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->light = {1, 0, 1};
+  renderer->light = {0, 1,1};
   renderer->eye = renderer->light;
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};
