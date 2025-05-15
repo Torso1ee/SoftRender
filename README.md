@@ -1,3 +1,7 @@
+### 这是基于[tinyrenderer](https://github.com/ssloy/tinyrenderer "tinyrenderer")实现的cpu渲染
+
+### 以下渲染原理的知识点
+
 ### 怎样画一条直线
 
 #### Bresenham’s Line Drawing Algorithm
