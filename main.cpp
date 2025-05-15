@@ -77,8 +77,8 @@ struct Shader : public IShader {
                                         renderData.shadow->height() - 1)))[0] <
                pS.z + 40);
 
-    vec3 e1 = renderData.ndc_tri[1] - renderData.ndc_tri[0];
-    vec3 e2 = renderData.ndc_tri[2] - renderData.ndc_tri[0];
+    vec3 e1 = renderData.world_tri[1] - renderData.world_tri[0];
+    vec3 e2 = renderData.world_tri[2] - renderData.world_tri[0];
 
     vec2 dUV1 = vec2{renderData.varying_uv[0][1] - renderData.varying_uv[0][0],
                      renderData.varying_uv[1][1] - renderData.varying_uv[1][0]};
@@ -151,7 +151,7 @@ int main(int, char **) {
   renderer->append_model(model);
 
   renderer->center = {0, 0, 0};
-  renderer->light = {0, 1, 1};
+  renderer->light = {1, 0, 1};
   renderer->eye = renderer->light;
   renderer->corner = {100, 100};
   renderer->size = {600, 600, 255};

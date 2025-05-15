@@ -63,6 +63,7 @@ void SoftRenderer::render(IShader &shader) {
         vec2 uv;
         for (int j = 0; j < 3; j++) {
           vec3 v = model->vert(i, j);
+          shader.renderData.world_tri[j] = v;
           vec3 nrm = model->normal(i, j);
           shader.renderData.varying_normal[j] = nrm;
           shader.renderData.varying_intensity[j] =

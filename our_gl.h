@@ -17,6 +17,7 @@ struct RenderData {
   vec3 varying_intensity;
   mat<3, 3> varying_normal;
   mat<3, 3> ndc_tri;
+  mat<3, 3> world_tri;
   int depth;
 
   mat<2, 3> varying_uv;
