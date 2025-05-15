@@ -10,6 +10,7 @@
 #include <ostream>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#define RENDER
 struct GouraudShader : public IShader {
   bool fragment(const vec3 bar, TGAColor &color) const {
     float intensity = renderData.varying_intensity * bar;
@@ -143,8 +144,6 @@ vec3 rand_point() {
 
 int main(int, char **) {
   auto renderer = new SoftRenderer();
-  auto occl = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
-  auto total = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
 
   auto model = new Model("obj/african_head/african_head.obj");
   renderer->append_model(model);
@@ -163,7 +162,8 @@ int main(int, char **) {
   DepthShader depthShader;
   AmShader amshader;
 
-  // shadowbuffer
+#ifdef RENDER
+#pragma region
   renderer->init(false);
   auto start = std::chrono::high_resolution_clock::now();
   renderer->render(depthShader);
@@ -171,8 +171,6 @@ int main(int, char **) {
   std::chrono::duration<double> duration = end - start;
   std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
   renderer->write_zimage("depth.tga");
-
-  // // render
   renderer->eye = {2, 1, 4};
   auto curMat = renderer->getCurCompoundMatrix();
   auto zimage = renderer->get_zImage();
@@ -184,77 +182,89 @@ int main(int, char **) {
   duration = end - start;
   std::cout << "渲染时间: " << duration.count() << " 秒" << std::endl;
   renderer->write_image("output.tga");
+#pragma endregion
+#endif
 
-  // get occl
-  //  renderer->setOccl(occl, total);
-  //  const int nrenders = 1000;
-  //  for (int iter = 1; iter <= nrenders; iter++) {
-  //    std::cout << iter << std::endl;
-  //    for (int i = 0; i < 3; i++)
-  //      renderer->up[i] = (float)rand() / (float)RAND_MAX;
-  //    renderer->eye = rand_point();
-  //    renderer->eye.y = abs(renderer->eye.y);
-  //    renderer->init(false);
-  //    renderer->render(depthShader);
-  //    auto zimage = renderer->get_zImage();
-  //    auto curMat = renderer->getCurCompoundMatrix();
-  //    renderer->setShadowInfo(&zimage, curMat);
-  //    renderer->init(false);
-  //    renderer->render(amshader);
-  //    for (int j = 0; j < total->width(); j++) {
-  //      for (int k = 0; k < total->height(); k++) {
-  //        auto tmp = total->get(j, k)[0];
-  //        total->set(
-  //            j, k,
-  //            TGAColor{uint8_t(
-  //                (tmp * (iter - 1) + occl->get(j, k)[0]) / float(iter) +
-  //                .5f)});
-  //      }
-  //    }
-  //  }
-  //  total->flip_vertically();
-  //  total->write_tga_file("occlusion.tga");
-  //  occl->flip_vertically();
-  //  occl->write_tga_file("occl.tga");
-
-  // ocrender
-  // OcShader occ;
-  // auto newocl = new TGAImage();
-  // newocl->read_tga_file("occl.tga");
-  // renderer->setOccl(newocl, newocl);
-  // renderer->eye = {2, 1, 4};
-  // renderer->init(true);
-  // renderer->render(occ);
-  // renderer->write_image("output.tga");
-
-  // simpleOc
-  // renderer->eye = {2, 1, 4};
-  // renderer->init(true);
-  // renderer->render(depthShader);
-  // auto zimage = renderer->get_zImage();
-  // TGAImage frame(800, 800, TGAImage::RGB);
-  // for (int j = 0; j < frame.width(); j++) {
-  //   std::cout << j << std::endl;
-  //   for (int k = 0; k < frame.height(); k++) {
-  //     if (zimage.get(j, k)[0] < -1e5)
-  //       continue;
-  //     float total = 0;
-  //     for (float a = 0; a < M_PI * 2 - 1e-4; a += M_PI / 4) {
-  //       total +=
-  //           M_PI / 2 - max_elevation_angle(&zimage, vec2{(double)j,
-  //           (double)k},
-  //                                          vec2{cos(a), sin(a)});
-  //     }
-  //     total /= (M_PI / 2) * 8;
-  //     total = pow(total, 100.f);
-  //     frame.set(j, k,
-  //               TGAColor{uint8_t(total * 255), uint8_t(total * 255),
-  //                        uint8_t(total * 255)});
-  //   }
-  // }
-  // frame.flip_vertically();
-  // frame.write_tga_file("output.tga");
-  delete renderer;
+#ifdef OCCLCAL
+#pragma region
+  auto occl = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
+  auto total = new TGAImage{1024, 1024, TGAImage::GRAYSCALE};
+  renderer->setOccl(occl, total);
+  const int nrenders = 2000;
+  for (int iter = 1; iter <= nrenders; iter++) {
+    std::cout << iter << std::endl;
+    for (int i = 0; i < 3; i++)
+      renderer->up[i] = (float)rand() / (float)RAND_MAX;
+    renderer->eye = rand_point();
+    renderer->eye.y = abs(renderer->eye.y);
+    renderer->init(false);
+    renderer->render(depthShader);
+    auto zimage = renderer->get_zImage();
+    auto curMat = renderer->getCurCompoundMatrix();
+    renderer->setShadowInfo(&zimage, curMat);
+    renderer->init(false);
+    renderer->render(amshader);
+    for (int j = 0; j < total->width(); j++) {
+      for (int k = 0; k < total->height(); k++) {
+        auto tmp = total->get(j, k)[0];
+        total->set(
+            j, k,
+            TGAColor{uint8_t(
+                (tmp * (iter - 1) + occl->get(j, k)[0]) / float(iter) + .5f)});
+      }
+    }
+  }
+  total->flip_vertically();
+  total->write_tga_file("occlusion.tga");
+  occl->flip_vertically();
+  occl->write_tga_file("occl.tga");
   delete occl;
   delete total;
+#pragma endregion
+#endif
+
+#ifdef OCCLRENDER
+#pragma region
+  OcShader occ;
+  auto newocl = new TGAImage();
+  newocl->read_tga_file("occl.tga");
+  renderer->setOccl(newocl, newocl);
+  renderer->eye = {2, 1, 4};
+  renderer->init(true);
+  renderer->render(occ);
+  renderer->write_image("output.tga");
+#pragma endregion
+#endif
+
+#ifdef SIMPLEOCCLCAL
+#pragma region simpleOc
+  renderer->eye = {2, 1, 4};
+  renderer->init(true);
+  renderer->render(depthShader);
+  auto zimage = renderer->get_zImage();
+  TGAImage frame(800, 800, TGAImage::RGB);
+  for (int j = 0; j < frame.width(); j++) {
+    std::cout << j << std::endl;
+    for (int k = 0; k < frame.height(); k++) {
+      if (zimage.get(j, k)[0] < -1e5)
+        continue;
+      float total = 0;
+      for (float a = 0; a < M_PI * 2 - 1e-4; a += M_PI / 4) {
+        total +=
+            M_PI / 2 - max_elevation_angle(&zimage, vec2{(double)j, (double)k},
+                                           vec2{cos(a), sin(a)});
+      }
+      total /= (M_PI / 2) * 8;
+      total = pow(total, 100.f);
+      frame.set(j, k,
+                TGAColor{uint8_t(total * 255), uint8_t(total * 255),
+                         uint8_t(total * 255)});
+    }
+  }
+  frame.flip_vertically();
+  frame.write_tga_file("output.tga");
+#pragma endregion
+#endif
+
+  delete renderer;
 }
