@@ -1,6 +1,6 @@
 ### 这是基于[tinyrenderer](https://github.com/ssloy/tinyrenderer "tinyrenderer")实现的cpu渲染
 
-### 以下是渲染原理的知识点
+### 以下是渲染原理要点
 
 ### 齐次坐标和各种变换
 
@@ -10,7 +10,7 @@
 * 在三维空间中，一个点 (x,y,z)(x, y, z)**(**x**,**y**,**z**)** 的齐次坐标表示为 (x,y,z,w)，其中 w≠0
 * 实际坐标通过除以 w 得到
 
-各种变换（以二维坐标系为例）
+#### 各种变换（以二维坐标系为例）
 
 **缩放变换**：x->a×x,y->b×y
 
@@ -52,8 +52,8 @@ $$
 
 $$
 \begin{bmatrix}
-1 & 0 & t_x \\
-0 & 1 & t_y \\
+1 & 0 & a \\
+0 & 1 & b \\
 0 & 0 & 1
 \end{bmatrix}
 \begin{bmatrix}
@@ -63,8 +63,8 @@ y \\
 \end{bmatrix}
 =
 \begin{bmatrix}
-x + t_x \\
-y + t_y \\
+x + a \\
+y + b \\
 1
 \end{bmatrix}
 $$
@@ -75,23 +75,23 @@ $$
 
 **模型空间坐标系（Model Space）**
 
-    ↓**模型变换（Model Transformation）**：负责将物体从模型坐标系（局部坐标系）变换到世界坐标系
+​        ↓**模型变换（Model Transformation）**：负责将物体从模型坐标系（局部坐标系）变换到世界坐标系
 
 **世界坐标系（World Space）**
 
-    ↓**视图变换（View Transformation）**：负责将世界坐标系转换到相机坐标系（观察者坐标系）
+​        ↓**视图变换（View Transformation）**：负责将世界坐标系转换到相机坐标系（观察者坐标系）
 
 **相机坐标系（Camera Space）**
 
-    ↓**投影变换（Projection Transformation）**：负责将相机坐标系中的三维场景投影到裁剪空间
+​        ↓**投影变换（Projection Transformation）**：负责将相机坐标系中的三维场景投影到裁剪空间
 
 **裁剪空间坐标系**:裁剪空间是图形管线中顶点经过投影变换后得到的坐标空间，顶点以齐次坐标形式表示（x, y, z, w）。在这个空间内，顶点会被裁剪以去除视锥体外的部分，从而优化后续渲染。
 
-    ↓**透视除法（Perspective Divide）**：将裁剪空间坐标转换为标准化设备坐标（NDC）
+​        ↓**透视除法（Perspective Divide）**：将裁剪空间坐标转换为标准化设备坐标（NDC）
 
 **标准化设备坐标系（Normalized Device Coordinates (NDC)）**：标准化设备坐标系是将裁剪空间经过齐次除法（Perspective Divide）后得到的坐标空间，所有坐标都被规范化到 [−1,1]的立方体内。
 
-    ↓**视窗变换（Viewport Transformation）**：将标准化设备坐标映射到屏幕坐标系
+​        ↓**视窗变换（Viewport Transformation）**：将标准化设备坐标映射到屏幕坐标系
 
 **屏幕空间（Screen Space）**
 
@@ -176,6 +176,16 @@ Z-buffer 存储每个像素当前的最小深度值（Z 值），每绘制一个
 * 透明度和其他像素级效果
 
 ### 一个简单的渲染流程
+
+#### 计算变换矩阵
+
+//TODO
+
+#### Vertex Shader里进行坐标变换
+
+//TODO
+
+#### **Pixel Shader**里计算像素颜色
 
 //TODO
 
