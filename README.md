@@ -10,11 +10,70 @@
 * 在三维空间中，一个点 (x,y,z)(x, y, z)**(**x**,**y**,**z**)** 的齐次坐标表示为 (x,y,z,w)，其中 w≠0
 * 实际坐标通过除以 w 得到
 
+各种变换（以二维坐标系为例）
+
+**缩放变换**：x->a×x,y->b×y
+
+
+$$
+\begin{bmatrix}
+a & 0 \\
+0 & b
+\end{bmatrix}
+$$
+
+**旋转矩阵**：绕原点转θ度
+
+
+$$
+\begin{bmatrix}
+\cos\theta & -\sin\theta \\
+\sin\theta & \cos\theta
+\end{bmatrix}
+$$
+
+**剪切变换**：沿着某个轴“倾斜”
+
+
+$$
+\begin{bmatrix}
+1 & k \\
+0 & 1
+\end{bmatrix}
+$$
+
 **为什么需要使用齐次坐标？**
 
-### 四种坐标系和五种变换
+**平移变换**：x->x+a,y->y+b
 
-**模型坐标系（Model Space）**
+显然无法用2*2矩阵表达，因为并非线性
+
+通过齐次坐标，把平移因子[a,b,1]作为新的一列，转化成线性变换
+
+$$
+\begin{bmatrix}
+1 & 0 & t_x \\
+0 & 1 & t_y \\
+0 & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+x \\
+y \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix}
+x + t_x \\
+y + t_y \\
+1
+\end{bmatrix}
+$$
+
+**仿射变换** 是一种包括线性变换（旋转、缩放、剪切）和**平移**的组合变换。
+
+### 六种空间和五种变换
+
+**模型空间坐标系（Model Space）**
 
     ↓**模型变换（Model Transformation）**：负责将物体从模型坐标系（局部坐标系）变换到世界坐标系
 
@@ -26,13 +85,19 @@
 
     ↓**投影变换（Projection Transformation）**：负责将相机坐标系中的三维场景投影到裁剪空间
 
+**裁剪空间坐标系**:裁剪空间是图形管线中顶点经过投影变换后得到的坐标空间，顶点以齐次坐标形式表示（x, y, z, w）。在这个空间内，顶点会被裁剪以去除视锥体外的部分，从而优化后续渲染。
+
     ↓**透视除法（Perspective Divide）**：将裁剪空间坐标转换为标准化设备坐标（NDC）
+
+**标准化设备坐标系（Normalized Device Coordinates (NDC)）**：标准化设备坐标系是将裁剪空间经过齐次除法（Perspective Divide）后得到的坐标空间，所有坐标都被规范化到 [−1,1]的立方体内。
 
     ↓**视窗变换（Viewport Transformation）**：将标准化设备坐标映射到屏幕坐标系
 
-**屏幕坐标系（Screen Space）**
+**屏幕空间（Screen Space）**
 
 //todo图解
+
+
 
 ### 怎样画一条直线
 
@@ -44,7 +109,7 @@
 
 ### 怎样绘制一个三角面：三角形光栅化
 
-#### Old-school method: Line sweeping(传统派中华)
+#### Old-school method: Line sweeping(传统派王源)
 
 是在现代光栅化技术（如 barycentric 插值、GPU 流程）出现前，**用扫描线逐行填充三角形的方法**
 
@@ -71,7 +136,7 @@
 
 //TODO图解
 
-#### Bounding Box + Barycentric Coordinates(维新派电子烟)
+#### Bounding Box + Barycentric Coordinates(维新派丁真)
 
 基于 **Bounding Box + 重心坐标（Barycentric Coordinates）** 的三角形光栅化，是现代软件渲染器中最常见、也是最优雅的一种方法。它对纹理贴图、Z-buffer、阴影映射等扩展非常友好。
 
@@ -110,7 +175,7 @@ Z-buffer 存储每个像素当前的最小深度值（Z 值），每绘制一个
 * 颜色混合与处理
 * 透明度和其他像素级效果
 
-### 一个简单而完整的渲染流程
+### 一个简单的渲染流程
 
 //TODO
 
